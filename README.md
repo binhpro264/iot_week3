@@ -1,72 +1,56 @@
-# Điều khiển hệ thống đa LED bằng OneButton – ESP32-S3
+# Điều khiển LED bằng nút nhấn – ESP32-S3 + OneButton
 
-Dự án PlatformIO xây dựng giải pháp điều khiển chuỗi đèn LED bằng nút bấm, tích hợp thư viện [OneButton](https://github.com/mathertel/OneButton) kết hợp cùng module `LED` (nằm trong `lib/LED`). Toàn bộ kịch bản được phân chia theo từng **môi trường (env)** riêng biệt trong tệp `platformio.ini`, giúp chuyển đổi và nạp trực tiếp từng bài toán mà không cần can thiệp mã nguồn.
+Dự án PlatformIO gồm các ví dụ điều khiển LED bằng nút nhấn, kết hợp thư viện OneButton và thư viện LED (thư mục lib/LED). Mỗi ví dụ tương ứng một môi trường (env) độc lập trong tệp platformio.ini, chỉ cần chọn env phù hợp là có thể nạp ngay mà không cần sửa mã nguồn.
 
-## Phần cứng
+## Phần cứng sử dụng
 
-* Board vi điều khiển: **ESP32-S3 DevKitC-1 N16R8** (16 MB Flash, 8 MB PSRAM)
+* Board vi điều khiển: ESP32-S3 DevKitC-1 N16R8 (16 MB flash, 8 MB PSRAM)
 * 2 LED đơn, 2 điện trở hạn dòng 1k Ω
-* 1 nút nhấn nhả (Push button 4 chân)
-* Test board (Breadboard) và dây cắm mạch
+* 1 nút nhấn nhả (Push button)
+* Test board (breadboard) và dây cắm mạch
 
-## Cấu trúc dự án
-week3_iot/
-├── lib/LED/LED.h        # Module LED non-blocking: on(), off(), flip(), blink(ms), loop()
-├── src/
-│   ├── blink.cpp        # Kịch bản kiểm tra LED nhấp nháy cơ bản
-│   ├── doublePush.cpp   # Kịch bản 1 nút điều khiển 1 LED
-│   └── twoLeds.cpp      # Kịch bản 1 nút điều khiển luân phiên 2 LED
-└── platformio.ini       # Khai báo cấu hình riêng cho từng env
+## Cấu trúc thư mục
 
-```
+* lib/LED/LED.h: Lớp quản lý LED non-blocking (các hàm on, off, flip, blink, loop)
+* src/blink.cpp: Kịch bản kiểm tra LED nhấp nháy cơ bản
+* src/doublePush.cpp: 1 nút điều khiển 1 LED
+* src/twoLeds.cpp: 1 nút luân phiên điều khiển 2 LED
+* platformio.ini: Tệp cấu hình các môi trường nạp và định nghĩa GPIO
 
-Mỗi env áp dụng tham số `build_src_filter` để cô lập file thực thi, đồng thời khai báo chân qua `build_flags`:
+Mỗi môi trường sử dụng build_src_filter để cô lập file thực thi và dùng build_flags để gán chân GPIO:
 
-| Env | File thực thi | Sơ đồ chân kết nối |
-| --- | --- | --- |
-| `blink` | `blink.cpp` | LED: GPIO4 |
-| `double_push` | `doublePush.cpp` | LED: GPIO4, Nút: GPIO0 (nút BOOT tích hợp) |
-| `two_leds` | `twoLeds.cpp` | LED1: GPIO4, LED2: GPIO6, Nút: GPIO5 |
+* Môi trường blink (file blink.cpp): LED kết nối chân GPIO 4.
+* Môi trường double_push (file doublePush.cpp): LED kết nối chân GPIO 4, nút nhấn dùng nút BOOT tích hợp sẵn trên board tại chân GPIO 0.
+* Môi trường two_leds (file twoLeds.cpp): LED 1 kết nối chân GPIO 4, LED 2 kết nối chân GPIO 6, nút nhấn kết nối chân GPIO 5.
 
-## Chức năng
+## Chức năng chi tiết
 
 ### blink
-
-LED tự động chớp tắt theo chu kỳ 500 ms.
+LED tự động nhấp nháy theo chu kỳ 500 ms.
 
 ### double_push
-
-* **Single click:** Đảo trạng thái Bật / Tắt LED
-* **Double click:** Chuyển sang chế độ nháy LED chu kỳ 200 ms
+* Single click (nhấn 1 lần): Bật hoặc tắt LED.
+* Double click (nhấn đúp): LED chuyển sang nhấp nháy chu kỳ 200 ms.
 
 ### two_leds
+Sử dụng một nút nhấn vật lý để điều khiển đồng thời hai LED:
 
-Một nút nhấn vật lý quản lý đồng thời hai đèn LED:
+* Double click (nhấn đúp): Chuyển quyền điều khiển giữa hai LED (LED 1 sang LED 2 và ngược lại). LED được chọn sẽ sáng lên để nhận diện, LED còn lại tự động tắt.
+* Single click (nhấn 1 lần): Bật hoặc tắt LED đang được chọn. Nếu LED đang ở trạng thái chớp nháy mà nhận lệnh này, LED sẽ dừng nhấp nháy và tắt hẳn.
+* Giữ nút (Long press): LED đang được chọn sẽ chuyển sang chế độ nhấp nháy chu kỳ 200 ms.
+* Trạng thái khởi tạo: Khi vừa cấp nguồn, hệ thống mặc định chọn LED 1 và bật sáng LED 1.
 
-| Thao tác | Chức năng chi tiết |
-| --- | --- |
-| **Double click** | Hoán đổi đèn đang điều khiển (LED1 ⇄ LED2). Đèn được chọn sẽ sáng báo hiệu, đèn còn lại lập tức tắt |
-| **Single click** | Bật hoặc tắt đèn đang được chọn |
-| **Giữ nút** | Đèn đang chọn chuyển sang chớp nháy liên tục 200 ms một lần |
+## Hướng dẫn nạp chương trình
 
-> Khi khởi động, hệ thống mặc định kích hoạt LED1 và bật sáng LED1. Trường hợp đèn đang chớp nháy mà nhận tín hiệu single click, đèn sẽ ngừng chớp và tắt hẳn.
+1. Nhìn xuống thanh trạng thái dưới cùng của VS Code, click vào tên môi trường hiện tại và chọn env muốn nạp (ví dụ env:two_leds).
+2. Bấm nút Upload (biểu tượng mũi tên sang phải) trên giao diện PlatformIO.
 
-## Hướng dẫn nạp code
-
-1. Dưới thanh trạng thái của VS Code, click vào tên môi trường hiện tại rồi chuyển sang env cần chạy (ví dụ `env:two_leds`).
-2. Bấm nút **Upload** (→) để nạp vào mạch.
-
-> Nếu giữ nguyên cấu hình `Default`, PlatformIO sẽ biên dịch và nạp nối tiếp tất cả các môi trường, board sẽ lưu kịch bản của env cuối cùng. Hãy chọn cụ thể môi trường trước khi bấm nạp.
-
-Dòng lệnh nạp nhanh qua Terminal:
-
-```bash
+Nếu muốn nạp nhanh bằng dòng lệnh trong Terminal:
 pio run -e two_leds -t upload
 
-```
+Lưu ý: Không nên để chế độ Default vì PlatformIO sẽ biên dịch và nạp lần lượt tất cả các môi trường, board sẽ chỉ lưu kịch bản của môi trường được nạp cuối cùng.
 
-## Thư viện sử dụng
+## Thư viện tích hợp
 
-* [mathertel/OneButton](https://github.com/mathertel/OneButton) `^2.6.1`: Bắt chuỗi sự kiện click, double click, giữ nút và lọc rung phím phần cứng.
-* `lib/LED/LED.h`: Lớp điều khiển đèn bất đồng bộ (non-blocking) dựa trên bộ đếm thời gian thực `millis()`.
-
+* mathertel/OneButton: Nhận diện các sự kiện click, double click, nhấn giữ và lọc rung phím phần cứng.
+* lib/LED: Module điều khiển trạng thái bật/tắt/nháy của LED dựa trên hàm millis(), hoàn toàn không chặn luồng CPU (non-blocking).
